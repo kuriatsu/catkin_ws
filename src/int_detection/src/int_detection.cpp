@@ -1,5 +1,6 @@
 #include <ros/ros.h>
-#include <tf/tf.h>
+//#include <tf/tf.h>
+#include <tf/transform_listener.h>
 #include <geometry_msgs/Pose.h>
 
 #include <jsk_recognition_msgs/BoundingBox.h>
@@ -13,8 +14,6 @@ boost::shared_ptr<interactive_markers::InteractiveMarkerServer> server;
 std::vector<tf::Vector3> positions;
 
 
-
-
 class int_detection{
 
 	private:
@@ -23,6 +22,7 @@ class int_detection{
 		float shift;
 		jsk_recognition_msgs::BoundingBox jsk_msgs;
 		std_msgs::Header jsk_array_header;
+		tf::TransformListener tf_listener;
 
 	public :
 		int_detection();
@@ -116,29 +116,45 @@ visualization_msgs::InteractiveMarkerControl& int_detection::make_box_control( v
 
 void int_detection::make_cube(){
 
+	geometry_msgs::Pose velodyne_pose;
+	geometry_msgs::Pose world_pose;
+	tf::Pose world_to_velodyne;
+	tf::Pose req_to_velodyne;
+	tf::StampedTransform req_to_world;
+
 	std::stringstream s;
 	s << jsk_msgs.label;
 
 	float theta = std::atan(jsk_msgs.pose.position.y / jsk_msgs.pose.position.x);
-	geometry_msgs::Pose pose;
-	pose.position.x = jsk_msgs.pose.position.x + shift * std::sin(theta);
-	pose.position.y = jsk_msgs.pose.position.y + shift * std::cos(theta);
-	pose.position.z = jsk_msgs.pose.position.z;
-	pose.orientation.x = 0;
-	pose.orientation.y = 0;
-	pose.orientation.z = 0;
-	pose.orientation.w = 1;
 
+	velodyne_pose.position.x = jsk_msgs.pose.position.x + shift * std::sin(theta);
+	velodyne_pose.position.y = jsk_msgs.pose.position.y + shift * std::cos(theta);
+	velodyne_pose.position.z = jsk_msgs.pose.position.z;
+	velodyne_pose.orientation.x = 0;
+	velodyne_pose.orientation.y = 0;
+	velodyne_pose.orientation.z = 0;
+	velodyne_pose.orientation.w = 1;
 
-	//server->clear();
+	try{
+		tf_listener.waitForTransform("velodyne", "world", ros::Time(0), ros::Duration(1.0));
+		tf_listener.lookupTransform("world", "velodyne", ros::Time(0), req_to_world);
+
+	}catch(...){
+		ROS_INFO("velodyne to world transform ERROR");
+	}
+
+	tf::poseMsgToTF(velodyne_pose, world_to_velodyne);
+	req_to_velodyne = req_to_world * world_to_velodyne;
+	tf::poseTFToMsg(req_to_velodyne, world_pose);
+	//ROS_INFO("x:%03f -> %03f, y:%03f -> %03f", velodyne_pose.position.x, world_pose.position.x, velodyne_pose.position.y, world_pose.position.y);
 
 	visualization_msgs::InteractiveMarker int_marker;
 
-	int_marker.header.frame_id = "velodyne";
+	int_marker.header.frame_id = "world";
 	int_marker.name = "No.1";
 	int_marker.scale = 1.0;
 
-	int_marker.pose = pose;
+	int_marker.pose = world_pose;
 
 	make_box_control(int_marker);
 	//sync_jsk_box(pose);
