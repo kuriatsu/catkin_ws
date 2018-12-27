@@ -20,15 +20,13 @@ class int_detection{
 		ros::Subscriber sub_detection;
 		ros::Publisher pub_jsk_box;
 		float shift;
-		jsk_recognition_msgs::BoundingBox in_jsk_msgs;
-		jsk_recognition_msgs::BoundingBox out_jsk_msgs;
-
+		jsk_recognition_msgs::BoundingBox jsk_msgs;
 		std_msgs::Header jsk_array_header;
 		tf::TransformListener tf_listener;
 
 	public :
 		int_detection();
-		void sync_jsk_box();
+		void sync_jsk_box(const geometry_msgs::Pose &pose);
 
 	private :
 		void detection_callback(const jsk_recognition_msgs::BoundingBoxArray::ConstPtr &msgs);
@@ -45,25 +43,29 @@ int_detection::int_detection(): shift(0){
 	sub_detection = n.subscribe("/detection/combined_objects_boxes", 5, &int_detection::detection_callback, this);
 	pub_jsk_box = n.advertise<jsk_recognition_msgs::BoundingBoxArray>("/detection/interactive_object", 5);
 
-	out_jsk_msgs.dimensions.x = 1.0;
-	out_jsk_msgs.dimensions.y = 6.0;
-	out_jsk_msgs.dimensions.z = 1.0;
-	out_jsk_msgs.value = 1;
 }
 
 
-void int_detection::sync_jsk_box(){
+void int_detection::sync_jsk_box(const geometry_msgs::Pose &pose){
 
-	jsk_recognition_msgs::BoundingBoxArray out_jsk_msgs_array;
-	out_jsk_msgs_array.header = in_jsk_msgs.header;
-	//out_jsk_msgs_array.reserve(10);
+	jsk_recognition_msgs::BoundingBoxArray out_jsk_box_array;
+	jsk_recognition_msgs::BoundingBox out_jsk_box = jsk_msgs;
 
-	out_jsk_msgs.header.frame_id = "world";
-	//out_jsk_msgs_array.header.frame_id = "world";
+	out_jsk_box_array.header = jsk_array_header;
 
-	out_jsk_msgs_array.boxes.push_back(out_jsk_msgs);
+	out_jsk_box.header = jsk_array_header;
+	out_jsk_box.header.frame_id = "world";
+	out_jsk_box.label = 1;
 
-	pub_jsk_box.publish(out_jsk_msgs_array);
+	out_jsk_box.pose = pose;
+	out_jsk_box.dimensions.x = 1.0;
+	out_jsk_box.dimensions.y = 6.0;
+	out_jsk_box.dimensions.z = 1.0;
+	out_jsk_box.value = 1;
+
+	out_jsk_box_array.boxes.push_back(out_jsk_box);
+
+	pub_jsk_box.publish(out_jsk_box_array);
 
 }
 
@@ -73,20 +75,19 @@ void int_detection::detection_callback(const jsk_recognition_msgs::BoundingBoxAr
 
 	for (size_t i = 0; i < msgs->boxes.size(); i++){
 		make_cube();
-		in_jsk_msgs = msgs->boxes[i];
-		out_jsk_msgs.header = msgs->boxes[i].header;
-		out_jsk_msgs.label = msgs->boxes[i].label;
+		jsk_msgs = msgs->boxes[i];
+		jsk_array_header = msgs->header;
 	}
 }
 
 
 void int_detection::shift_feedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
 
-	shift = std::sqrt(std::pow(feedback->pose.position.x - in_jsk_msgs.pose.position.x, 2.0) + std::pow(feedback->pose.position.y - in_jsk_msgs.pose.position.y, 2.0));
-	if ((feedback->pose.position.y - in_jsk_msgs.pose.position.y) < 0){
+	shift = std::sqrt(std::pow(feedback->pose.position.x - jsk_msgs.pose.position.x, 2.0) + std::pow(feedback->pose.position.y - jsk_msgs.pose.position.y, 2.0));
+	if ((feedback->pose.position.y - jsk_msgs.pose.position.y) < 0){
 		shift = -shift;
 	}
-	sync_jsk_box();
+
 	ROS_INFO_STREAM(shift);
 }
 
@@ -105,7 +106,7 @@ visualization_msgs::InteractiveMarkerControl& int_detection::make_box_control( v
 	marker.type = visualization_msgs::Marker::CUBE;
 	marker.scale.x = msg.scale;
 	marker.scale.y = msg.scale*6;
-	marker.scale.z = msg.scale*2;
+	marker.scale.z = msg.scale;
 	marker.color.r = 0;
 	marker.color.g = 1;
 	marker.color.b = 0;
@@ -130,13 +131,13 @@ void int_detection::make_cube(){
 	tf::StampedTransform req_to_world;
 
 	std::stringstream s;
-	s << in_jsk_msgs.label;
+	s << jsk_msgs.label;
 
-	float theta = std::atan(in_jsk_msgs.pose.position.y / in_jsk_msgs.pose.position.x);
+	float theta = std::atan(jsk_msgs.pose.position.y / jsk_msgs.pose.position.x);
 
-	velodyne_pose.position.x = in_jsk_msgs.pose.position.x + shift * std::sin(theta);
-	velodyne_pose.position.y = in_jsk_msgs.pose.position.y + shift * std::cos(theta);
-	velodyne_pose.position.z = in_jsk_msgs.pose.position.z;
+	velodyne_pose.position.x = jsk_msgs.pose.position.x + shift * std::sin(theta);
+	velodyne_pose.position.y = jsk_msgs.pose.position.y + shift * std::cos(theta);
+	velodyne_pose.position.z = jsk_msgs.pose.position.z;
 	velodyne_pose.orientation.x = 0;
 	velodyne_pose.orientation.y = 0;
 	velodyne_pose.orientation.z = 0;
@@ -162,10 +163,9 @@ void int_detection::make_cube(){
 	int_marker.scale = 1.0;
 
 	int_marker.pose = world_pose;
-	out_jsk_msgs.pose = world_pose;
 
 	make_box_control(int_marker);
-	sync_jsk_box();
+	sync_jsk_box(world_pose);
 
 	server->insert(int_marker);
 
