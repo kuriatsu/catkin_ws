@@ -1,5 +1,4 @@
 #include <ros/ros.h>
-//#include <tf/tf.h>
 #include <tf/transform_listener.h>
 #include <geometry_msgs/Pose.h>
 
@@ -56,10 +55,8 @@ void int_detection::sync_jsk_box(){
 
 	jsk_recognition_msgs::BoundingBoxArray out_jsk_msgs_array;
 	out_jsk_msgs_array.header = in_jsk_msgs.header;
-	//out_jsk_msgs_array.reserve(10);
 
 	out_jsk_msgs.header.frame_id = "world";
-	//out_jsk_msgs_array.header.frame_id = "world";
 
 	out_jsk_msgs_array.boxes.push_back(out_jsk_msgs);
 
