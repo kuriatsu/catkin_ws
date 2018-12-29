@@ -47,7 +47,7 @@ int_detection::int_detection(): shift(0){
 
 	out_jsk_msgs.dimensions.x = 1.0;
 	out_jsk_msgs.dimensions.y = 6.0;
-	out_jsk_msgs.dimensions.z = 1.0;
+	out_jsk_msgs.dimensions.z = 2.0;
 	out_jsk_msgs.value = 1;
 }
 
@@ -57,6 +57,7 @@ void int_detection::sync_jsk_box(){
 	jsk_recognition_msgs::BoundingBoxArray out_jsk_msgs_array;
 	out_jsk_msgs_array.header = in_jsk_msgs.header;
 	out_jsk_msgs.header.frame_id = "world";
+	out_jsk_msgs.pose.position.z = -0.2;
 	out_jsk_msgs_array.boxes.push_back(out_jsk_msgs);
 	pub_jsk_box.publish(out_jsk_msgs_array);
 }
@@ -76,10 +77,12 @@ void int_detection::detection_callback(const jsk_recognition_msgs::BoundingBoxAr
 
 void int_detection::shift_feedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
 
-	shift = std::sqrt(std::pow(feedback->pose.position.x - out_jsk_msgs.pose.position.x, 2.0) + std::pow(feedback->pose.position.y - out_jsk_msgs.pose.position.y, 2.0));
+	float permanet_shift;
+	permanet_shift = std::sqrt(std::pow(feedback->pose.position.x - out_jsk_msgs.pose.position.x, 2.0) + std::pow(feedback->pose.position.y - out_jsk_msgs.pose.position.y, 2.0));
 	if ((feedback->pose.position.y - out_jsk_msgs.pose.position.y) < 0){
-		shift = -shift;
+		permanet_shift = -permanet_shift;
 	}
+	shift += permanet_shift;
 	calc_boxpose();
 	sync_jsk_box();
 	ROS_INFO_STREAM(shift);
@@ -100,7 +103,7 @@ visualization_msgs::InteractiveMarkerControl& int_detection::make_box_control( v
 	marker.type = visualization_msgs::Marker::CUBE;
 	marker.scale.x = msg.scale;
 	marker.scale.y = msg.scale*6;
-	marker.scale.z = msg.scale*2;
+	marker.scale.z = msg.scale*3;
 	marker.color.r = 0;
 	marker.color.g = 1;
 	marker.color.b = 0;
