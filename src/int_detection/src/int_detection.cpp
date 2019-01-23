@@ -2,8 +2,16 @@
 #include <tf/transform_listener.h>
 #include <geometry_msgs/Pose.h>
 
+#include <sensor_msgs/PointCloud2.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl_ros/point_cloud.h>
+#include <pcl/common/pca.h>
+
 #include <jsk_recognition_msgs/BoundingBox.h>
 #include <jsk_recognition_msgs/BoundingBoxArray.h>
+
+#include <autoware_msgs/CloudCluster.h>
+#include <autoware_msgs/CloudClusterArray.h>
 
 #include <interactive_markers/interactive_marker_server.h>
 
@@ -17,7 +25,8 @@ class int_detection{
 
 	private:
 		ros::Subscriber sub_detection;
-		ros::Publisher pub_jsk_box;
+		ros::Publisher pub_pointcloud;
+		ros::Publisher pub_cloud;
 		float shift;
 		jsk_recognition_msgs::BoundingBox in_jsk_msgs;
 		jsk_recognition_msgs::BoundingBox out_jsk_msgs;
@@ -43,7 +52,10 @@ int_detection::int_detection(): shift(0){
 	ros::NodeHandle n;
 
 	sub_detection = n.subscribe("/detection/combined_objects_boxes", 5, &int_detection::detection_callback, this);
-	pub_jsk_box = n.advertise<jsk_recognition_msgs::BoundingBoxArray>("/detection/interactive_object", 5);
+	pub_pointcloud = n.advertise<sensor_msgs::PointCloud2>("/int_pointcloud", 50);
+	pub_cloud = n.advertise<autoware_msgs::CloudClusterArray>("/int_cluster", 50);
+
+
 
 	out_jsk_msgs.dimensions.x = 1.0;
 	out_jsk_msgs.dimensions.y = 6.0;
@@ -54,12 +66,90 @@ int_detection::int_detection(): shift(0){
 
 void int_detection::sync_jsk_box(){
 
-	jsk_recognition_msgs::BoundingBoxArray out_jsk_msgs_array;
-	out_jsk_msgs_array.header = in_jsk_msgs.header;
-	out_jsk_msgs.header.frame_id = "world";
-	out_jsk_msgs.pose.position.z = -0.2;
-	out_jsk_msgs_array.boxes.push_back(out_jsk_msgs);
-	pub_jsk_box.publish(out_jsk_msgs_array);
+	autoware_msgs::CloudClusterArray cluster_array;
+	autoware_msgs::CloudCluster cluster;
+
+	pcl::PointCloud<pcl::PointXYZRGB> cloud;
+	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mono(new pcl::PointCloud<pcl::PointXYZ>);
+	pcl::PCA<pcl::PointXYZ> pca;
+
+
+	std_msgs::Header out_header = in_jsk_msgs.header;
+	out_header.frame_id = "world";
+
+	cluster_array.header = out_header;
+	cluster.header = out_header;
+	pcl_conversions::toPCL(out_header, cloud.header);
+
+	cluster.id = 0;
+	cluster.score = 0.0;
+	cloud.width = 20;
+	cloud.height = 5;
+	cloud.points.resize(100);
+
+	unsigned int count = 0;
+
+	for (unsigned int row = 0; row < 5; row++){
+		for (unsigned int col = 0; col < 20; col++){
+
+			pcl::PointXYZRGB &point = cloud.points[count];
+			point.x = out_jsk_msgs.pose.position.x - 0.5 + row * 0.2;
+			point.y = out_jsk_msgs.pose.position.y - 3.0 + col * 0.3;
+			point.z = out_jsk_msgs.pose.position.z;
+			point.r = point.g = point.b = 0.3;
+
+			count++;
+		}
+	}
+	pcl::toROSMsg(cloud, cluster.cloud);
+
+	pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(cloud, *cloud_mono);
+
+	cluster.min_point.header = cluster.max_point.header = cluster.avg_point.header = out_header;
+	cluster.min_point.point.x = cloud_mono->points[0].x;
+	cluster.min_point.point.y = cloud_mono->points[0].y;
+	cluster.min_point.point.z = cloud_mono->points[0].z;
+	cluster.max_point.point.x = cloud_mono->points[99].x;
+	cluster.max_point.point.y = cloud_mono->points[99].y;
+	cluster.max_point.point.z = cloud_mono->points[99].z;
+	cluster.avg_point.point.x = cloud_mono->points[50].x;
+	cluster.avg_point.point.y = cloud_mono->points[50].y;
+	cluster.avg_point.point.z = cloud_mono->points[50].z;
+	cluster.centroid_point = cluster.avg_point;
+	cluster.estimated_angle = 0.0;
+
+
+	cluster.dimensions.x = 6.0;
+	cluster.dimensions.y = 1.0;
+	cluster.dimensions.z = 0.2;
+
+
+	pca.setInputCloud(cloud_mono);
+
+	Eigen::Vector3f eigen_values = pca.getEigenValues();
+	cluster.eigen_values.x = eigen_values.x();
+	cluster.eigen_values.y = eigen_values.y();
+	cluster.eigen_values.z = eigen_values.z();
+
+
+	Eigen::Matrix3f eigen_vectors = pca.getEigenVectors();
+	for (unsigned int i = 0; i < 3; i++){
+
+		geometry_msgs::Vector3 eigen_vector;
+		eigen_vector.x = eigen_vectors(i, 0);
+		eigen_vector.y = eigen_vectors(i, 1);
+		eigen_vector.z = eigen_vectors(i, 2);
+		cluster.eigen_vectors.push_back(eigen_vector);
+	}
+
+
+	cluster.bounding_box = out_jsk_msgs;
+
+	//cluster.convex_hull
+	cluster_array.clusters.push_back(cluster);
+	pub_cloud.publish(cluster_array);
+	pub_pointcloud.publish(cluster.cloud);
+
 }
 
 
@@ -146,6 +236,7 @@ void int_detection::calc_boxpose(){
 	tf::poseMsgToTF(box_pose, world_to_velodyne);
 	req_to_velodyne = req_to_world * world_to_velodyne;
 	tf::poseTFToMsg(req_to_velodyne, out_jsk_msgs.pose);
+
 	//ROS_INFO("x:%03f -> %03f, y:%03f -> %03f", velodyne_pose.position.x, world_pose.position.x, velodyne_pose.position.y, world_pose.position.y);
 
 }

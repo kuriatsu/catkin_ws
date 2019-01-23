@@ -14,6 +14,9 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   jsk_recognition_msgs
   autoware_msgs
+  pcl_conversions
+  pcl_msgs
+  pcl_ros
 )
 
 ## System dependencies are found with CMake's conventions
