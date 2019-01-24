@@ -27,8 +27,8 @@ class add_obstacle{
 		ros::Publisher pub_pointcloud;
 		ros::Publisher pub_cloud;
 		float shift;
-		geometry_msgs obstacle_pose;
-		jsk_recognition_msgs out_jsk_msgs;
+		geometry_msgs::Pose obstacle_pose;
+		jsk_recognition_msgs::BoundingBox out_jsk_msgs;
 
 	public :
 		add_obstacle();
@@ -42,7 +42,7 @@ class add_obstacle{
 };
 
 
-int_detection::int_detection(): shift(0){
+add_obstacle::add_obstacle(): shift(0){
 
 	ros::NodeHandle n;
 
@@ -72,7 +72,7 @@ int_detection::int_detection(): shift(0){
 }
 
 
-void int_detection::sync_jsk_box(){
+void add_obstacle::sync_jsk_box(){
 
 	autoware_msgs::CloudClusterArray cluster_array;
 	autoware_msgs::CloudCluster cluster;
@@ -160,7 +160,7 @@ void int_detection::sync_jsk_box(){
 }
 
 
-void int_detection::shift_feedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
+void add_obstacle::shift_feedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
 
 	float permanet_shift;
 	permanet_shift = std::sqrt(std::pow(feedback->pose.position.x - out_jsk_msgs.pose.position.x, 2.0) + std::pow(feedback->pose.position.y - out_jsk_msgs.pose.position.y, 2.0));
@@ -174,7 +174,7 @@ void int_detection::shift_feedback(const visualization_msgs::InteractiveMarkerFe
 }
 
 
-visualization_msgs::InteractiveMarkerControl& int_detection::make_box_control( visualization_msgs::InteractiveMarker &msg){
+visualization_msgs::InteractiveMarkerControl& add_obstacle::make_box_control( visualization_msgs::InteractiveMarker &msg){
 
 	visualization_msgs::InteractiveMarkerControl control;
 	control.always_visible  = true;
@@ -200,7 +200,7 @@ visualization_msgs::InteractiveMarkerControl& int_detection::make_box_control( v
 }
 
 
-void int_detection::calc_boxpose(){
+void add_obstacle::calc_boxpose(){
 
 	geometry_msgs::Pose box_pose;
 
@@ -211,7 +211,7 @@ void int_detection::calc_boxpose(){
 	box_pose.position.z = obstacle_pose.position.z;
 	box_pose.orientation.x = 0;
 	box_pose.orientation.y = 0;
-	box_pose.orientation.z = 0;
+	box_pose.orientation.z = 1;
 	box_pose.orientation.w = 1;
 
 	obstacle_pose = box_pose;
@@ -219,7 +219,7 @@ void int_detection::calc_boxpose(){
 }
 
 
-void int_detection::make_cube(){
+void add_obstacle::make_cube(){
 
 	calc_boxpose();
 
@@ -235,7 +235,7 @@ void int_detection::make_cube(){
 
 	server->insert(int_marker);
 
-	server->setCallback(int_marker.name, boost::bind(&int_detection::shift_feedback, this, _1));
+	server->setCallback(int_marker.name, boost::bind(&add_obstacle::shift_feedback, this, _1));
 	server->applyChanges();
 
 
@@ -249,7 +249,7 @@ int main(int argc, char **argv){
 	ros::Duration(0.1).sleep();
 	ROS_INFO("Initializing...");
 
-	int_detection add_obstacle;
+	add_obstacle add_obstacle;
 	ROS_INFO("Ready...");
 	//server->applyChanges();
 

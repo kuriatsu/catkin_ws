@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(add_obj)
+project(add_obstacle)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -203,3 +203,6 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+add_executable(add_obstacle_node src/add_obstacle)
+target_link_libraries(add_obstacle_node ${catkin_LIBRARIES})
