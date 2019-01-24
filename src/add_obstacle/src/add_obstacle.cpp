@@ -21,7 +21,7 @@ boost::shared_ptr<interactive_markers::InteractiveMarkerServer> server;
 std::vector<tf::Vector3> positions;
 
 
-class add_obj{
+class add_obstacle{
 
 	private:
 		ros::Publisher pub_pointcloud;
@@ -46,13 +46,29 @@ int_detection::int_detection(): shift(0){
 
 	ros::NodeHandle n;
 
-	pub_pointcloud = n.advertise<sensor_msgs::PointCloud2>("/add_obstacle_box", 50);
+	pub_pointcloud = n.advertise<sensor_msgs::PointCloud2>("/add_obstacle_points", 50);
 	pub_cloud = n.advertise<autoware_msgs::CloudClusterArray>("/add_obstacle_cluster", 50);
 
 	out_jsk_msgs.dimensions.x = 1.0;
 	out_jsk_msgs.dimensions.y = 6.0;
 	out_jsk_msgs.dimensions.z = 2.0;
 	out_jsk_msgs.value = 1;
+	out_jsk_msgs.label = 1;
+	out_jsk_msgs.header.frame_id = "world";
+	out_jsk_msgs.header.stamp = ros::Time::now();
+
+	obstacle_pose.position.x = 0.0;
+	obstacle_pose.position.y = 0.0;
+	obstacle_pose.position.z = 0.0;
+	obstacle_pose.orientation.x = 0.0;
+	obstacle_pose.orientation.y = 0.0;
+	obstacle_pose.orientation.z = 1.0;
+	obstacle_pose.orientation.w = 1.0;
+
+	out_jsk_msgs.pose = obstacle_pose;
+
+	make_cube();
+
 }
 
 
@@ -66,8 +82,7 @@ void int_detection::sync_jsk_box(){
 	pcl::PCA<pcl::PointXYZ> pca;
 
 
-	std_msgs::Header out_header = obstacle_pose.header;
-	out_header.frame_id = "world";
+	std_msgs::Header out_header = out_jsk_msgs.header;
 
 	cluster_array.header = out_header;
 	cluster.header = out_header;
@@ -164,10 +179,7 @@ visualization_msgs::InteractiveMarkerControl& int_detection::make_box_control( v
 	visualization_msgs::InteractiveMarkerControl control;
 	control.always_visible  = true;
 	control.interaction_mode = visualization_msgs::InteractiveMarkerControl::MOVE_AXIS;
-	control.orientation.x = 0;
-	control.orientation.y = 0;
-	control.orientation.z = 1.0;
-	control.orientation.w = 1;
+	control.orientation = obstacle_pose.orientation;
 
 	visualization_msgs::Marker marker;
 	marker.type = visualization_msgs::Marker::CUBE;
@@ -191,10 +203,6 @@ visualization_msgs::InteractiveMarkerControl& int_detection::make_box_control( v
 void int_detection::calc_boxpose(){
 
 	geometry_msgs::Pose box_pose;
-	tf::Pose world_to_velodyne;
-	tf::Pose req_to_velodyne;
-	tf::StampedTransform req_to_world;
-
 
 	float theta = std::atan(obstacle_pose.position.y / obstacle_pose.position.x);
 
@@ -206,6 +214,8 @@ void int_detection::calc_boxpose(){
 	box_pose.orientation.z = 0;
 	box_pose.orientation.w = 1;
 
+	obstacle_pose = box_pose;
+
 }
 
 
@@ -215,7 +225,7 @@ void int_detection::make_cube(){
 
 	visualization_msgs::InteractiveMarker int_marker;
 
-	int_marker.header.frame_id = "map";
+	int_marker.header.frame_id = "world";
 	int_marker.name = "No.1";
 	int_marker.scale = 1.0;
 	int_marker.pose = out_jsk_msgs.pose;
@@ -234,12 +244,12 @@ void int_detection::make_cube(){
 
 int main(int argc, char **argv){
 
-	ros::init(argc, argv, "add_obj_node");
-	server.reset(new interactive_markers::InteractiveMarkerServer("int_detection_node"));
+	ros::init(argc, argv, "add_obstacle_node");
+	server.reset(new interactive_markers::InteractiveMarkerServer("add_obstacle_node"));
 	ros::Duration(0.1).sleep();
 	ROS_INFO("Initializing...");
 
-	int_detection int_detect;
+	int_detection add_obstacle;
 	ROS_INFO("Ready...");
 	//server->applyChanges();
 
