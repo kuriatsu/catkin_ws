@@ -214,7 +214,7 @@ void add_obstacle::calc_boxpose(){
 	box_pose.orientation.z = 1;
 	box_pose.orientation.w = 1;
 
-	obstacle_pose = box_pose;
+	out_jsk_msgs.pose = box_pose;
 
 }
 
