@@ -26,49 +26,102 @@ class add_obstacle{
 	private:
 		ros::Publisher pub_pointcloud;
 		ros::Publisher pub_cloud;
-		float shift;
 		geometry_msgs::Pose obstacle_pose;
 		jsk_recognition_msgs::BoundingBox out_jsk_msgs;
 
 	public :
 		add_obstacle();
 		void sync_jsk_box();
+		void get_obstacle_pose();
 
 	private :
 		void make_cube();
 		visualization_msgs::InteractiveMarkerControl& make_box_control( visualization_msgs::InteractiveMarker &msg);
 		void shift_feedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback);
-		void calc_boxpose();
 };
 
 
-add_obstacle::add_obstacle(): shift(0){
+add_obstacle::add_obstacle(){
 
 	ros::NodeHandle n;
 
 	pub_pointcloud = n.advertise<sensor_msgs::PointCloud2>("/add_obstacle_points", 50);
 	pub_cloud = n.advertise<autoware_msgs::CloudClusterArray>("/add_obstacle_cluster", 50);
 
+	get_obstacle_pose();
+
 	out_jsk_msgs.dimensions.x = 1.0;
 	out_jsk_msgs.dimensions.y = 6.0;
 	out_jsk_msgs.dimensions.z = 2.0;
-	out_jsk_msgs.value = 1;
+	out_jsk_msgs.value = 1.0;
 	out_jsk_msgs.label = 1;
 	out_jsk_msgs.header.frame_id = "world";
-	out_jsk_msgs.header.stamp = ros::Time::now();
+	out_jsk_msgs.pose = obstacle_pose;
+
+	make_cube();
+}
+
+
+void add_obstacle::get_obstacle_pose(){
 
 	obstacle_pose.position.x = 0.0;
 	obstacle_pose.position.y = 0.0;
 	obstacle_pose.position.z = 0.0;
 	obstacle_pose.orientation.x = 0.0;
 	obstacle_pose.orientation.y = 0.0;
-	obstacle_pose.orientation.z = 1.0;
-	obstacle_pose.orientation.w = 1.0;
+	obstacle_pose.orientation.z = sin(M_PI/7);
+	obstacle_pose.orientation.w = cos(M_PI/7);
 
-	out_jsk_msgs.pose = obstacle_pose;
 
-	make_cube();
+}
 
+void add_obstacle::make_cube(){
+
+	visualization_msgs::InteractiveMarker int_marker;
+
+	int_marker.header.frame_id = "world";
+	int_marker.name = "No.1";
+	int_marker.scale = 1.0;
+	int_marker.pose = out_jsk_msgs.pose;
+
+	make_box_control(int_marker);
+	sync_jsk_box();
+	//ROS_INFO_STREAM(out_jsk_msgs.pose);
+	server->insert(int_marker);
+
+	server->setCallback(int_marker.name, boost::bind(&add_obstacle::shift_feedback, this, _1));
+	server->applyChanges();
+
+
+}
+
+
+visualization_msgs::InteractiveMarkerControl& add_obstacle::make_box_control( visualization_msgs::InteractiveMarker &msg){
+
+	visualization_msgs::InteractiveMarkerControl control;
+	control.always_visible  = true;
+	control.interaction_mode = visualization_msgs::InteractiveMarkerControl::MOVE_AXIS;
+	//control.orientation = out_jsk_msgs.pose.orientation;
+	control.orientation.x = 0;
+	control.orientation.y = 0;
+	control.orientation.z = 1;
+	control.orientation.w = 1;
+
+	//ROS_INFO_STREAM(control.orientation);
+	visualization_msgs::Marker marker;
+	marker.type = visualization_msgs::Marker::CUBE;
+	marker.scale.x = msg.scale;
+	marker.scale.y = msg.scale*6;
+	marker.scale.z = msg.scale*3;
+	marker.color.r = 0;
+	marker.color.g = 1;
+	marker.color.b = 0;
+	marker.color.a = 0.5;
+
+	control.markers.push_back(marker);
+	msg.controls.push_back(control);
+
+	return msg.controls.back();
 }
 
 
@@ -81,12 +134,18 @@ void add_obstacle::sync_jsk_box(){
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mono(new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PCA<pcl::PointXYZ> pca;
 
+	double roll, pitch, yaw;
+	tf::Quaternion tf_quat(out_jsk_msgs.pose.orientation.x, out_jsk_msgs.pose.orientation.y, out_jsk_msgs.pose.orientation.z, out_jsk_msgs.pose.orientation.w);
+	tf::Matrix3x3(tf_quat).getRPY( roll, pitch, yaw);
 
-	std_msgs::Header out_header = out_jsk_msgs.header;
 
-	cluster_array.header = out_header;
-	cluster.header = out_header;
-	pcl_conversions::toPCL(out_header, cloud.header);
+	//ROS_INFO("%lf, %lf, %lf",roll/M_PI*180, pitch/M_PI*180, yaw/M_PI*180);
+
+	out_jsk_msgs.header.stamp = ros::Time::now();
+
+	cluster_array.header = out_jsk_msgs.header;
+	cluster.header = out_jsk_msgs.header;
+	pcl_conversions::toPCL(out_jsk_msgs.header, cloud.header);
 
 	cluster.id = 0;
 	cluster.score = 0.0;
@@ -94,25 +153,29 @@ void add_obstacle::sync_jsk_box(){
 	cloud.height = 5;
 	cloud.points.resize(100);
 
+	double x, y;
 	unsigned int count = 0;
 
 	for (unsigned int row = 0; row < 5; row++){
 		for (unsigned int col = 0; col < 20; col++){
 
 			pcl::PointXYZRGB &point = cloud.points[count];
-			point.x = out_jsk_msgs.pose.position.x - 0.5 + row * 0.2;
-			point.y = out_jsk_msgs.pose.position.y - 3.0 + col * 0.3;
+			x = -0.5 + row * 0.2;
+			y = -3.0 + col * 0.3;
+			point.x = x*cos(2*M_PI+yaw) - y*sin(2*M_PI+yaw) + out_jsk_msgs.pose.position.x;
+			point.y = x*sin(2*M_PI+yaw) + y*cos(2*M_PI+yaw) + out_jsk_msgs.pose.position.y ;
 			point.z = out_jsk_msgs.pose.position.z;
 			point.r = point.g = point.b = 0.3;
 
 			count++;
 		}
 	}
+
 	pcl::toROSMsg(cloud, cluster.cloud);
 
 	pcl::copyPointCloud<pcl::PointXYZRGB, pcl::PointXYZ>(cloud, *cloud_mono);
 
-	cluster.min_point.header = cluster.max_point.header = cluster.avg_point.header = out_header;
+	cluster.min_point.header = cluster.max_point.header = cluster.avg_point.header = out_jsk_msgs.header;
 	cluster.min_point.point.x = cloud_mono->points[0].x;
 	cluster.min_point.point.y = cloud_mono->points[0].y;
 	cluster.min_point.point.z = cloud_mono->points[0].z;
@@ -162,83 +225,10 @@ void add_obstacle::sync_jsk_box(){
 
 void add_obstacle::shift_feedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
 
-	float permanet_shift;
-	permanet_shift = std::sqrt(std::pow(feedback->pose.position.x - out_jsk_msgs.pose.position.x, 2.0) + std::pow(feedback->pose.position.y - out_jsk_msgs.pose.position.y, 2.0));
-	if ((feedback->pose.position.y - out_jsk_msgs.pose.position.y) < 0){
-		permanet_shift = -permanet_shift;
-	}
-	shift += permanet_shift;
-	calc_boxpose();
+	out_jsk_msgs.pose = feedback->pose;
+	//ROS_INFO_STREAM(out_jsk_msgs);
+	//ROS_INFO_STREAM(feedback->pose);
 	sync_jsk_box();
-	ROS_INFO_STREAM(shift);
-}
-
-
-visualization_msgs::InteractiveMarkerControl& add_obstacle::make_box_control( visualization_msgs::InteractiveMarker &msg){
-
-	visualization_msgs::InteractiveMarkerControl control;
-	control.always_visible  = true;
-	control.interaction_mode = visualization_msgs::InteractiveMarkerControl::MOVE_AXIS;
-	control.orientation = obstacle_pose.orientation;
-
-	visualization_msgs::Marker marker;
-	marker.type = visualization_msgs::Marker::CUBE;
-	marker.scale.x = msg.scale;
-	marker.scale.y = msg.scale*6;
-	marker.scale.z = msg.scale*3;
-	marker.color.r = 0;
-	marker.color.g = 1;
-	marker.color.b = 0;
-	marker.color.a = 0.5;
-
-	control.markers.push_back(marker);
-	msg.controls.push_back(control);
-
-
-
-	return msg.controls.back();
-}
-
-
-void add_obstacle::calc_boxpose(){
-
-	geometry_msgs::Pose box_pose;
-
-	float theta = std::atan(obstacle_pose.position.y / obstacle_pose.position.x);
-
-	box_pose.position.x = obstacle_pose.position.x + shift * std::sin(theta);
-	box_pose.position.y = obstacle_pose.position.y + shift * std::cos(theta);
-	box_pose.position.z = obstacle_pose.position.z;
-	box_pose.orientation.x = 0;
-	box_pose.orientation.y = 0;
-	box_pose.orientation.z = 1;
-	box_pose.orientation.w = 1;
-
-	obstacle_pose = box_pose;
-
-}
-
-
-void add_obstacle::make_cube(){
-
-	calc_boxpose();
-
-	visualization_msgs::InteractiveMarker int_marker;
-
-	int_marker.header.frame_id = "world";
-	int_marker.name = "No.1";
-	int_marker.scale = 1.0;
-	int_marker.pose = out_jsk_msgs.pose;
-
-	make_box_control(int_marker);
-	sync_jsk_box();
-
-	server->insert(int_marker);
-
-	server->setCallback(int_marker.name, boost::bind(&add_obstacle::shift_feedback, this, _1));
-	server->applyChanges();
-
-
 }
 
 
