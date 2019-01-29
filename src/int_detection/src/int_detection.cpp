@@ -26,6 +26,7 @@ class int_detection{
 	private:
 		ros::Subscriber sub_detection;
 		ros::Publisher pub_pointcloud;
+		//ros::Publisher pub_jsk_box;
 		ros::Publisher pub_cloud;
 		float shift;
 		jsk_recognition_msgs::BoundingBox in_jsk_msgs;
@@ -54,6 +55,7 @@ int_detection::int_detection(): shift(0){
 	sub_detection = n.subscribe("/detection/combined_objects_boxes", 5, &int_detection::detection_callback, this);
 	pub_pointcloud = n.advertise<sensor_msgs::PointCloud2>("/int_pointcloud", 50);
 	pub_cloud = n.advertise<autoware_msgs::CloudClusterArray>("/int_cluster", 50);
+	//pub_jsk_box = n.advertise<jsk_recognition_msgs::BoundingBoxArray>("/int_boundingbox", 5);
 
 
 
@@ -73,6 +75,9 @@ void int_detection::sync_jsk_box(){
 	pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mono(new pcl::PointCloud<pcl::PointXYZ>);
 	pcl::PCA<pcl::PointXYZ> pca;
 
+	//jsk_recognition_msgs::BoundingBoxArray out_jsk_msgs_array;
+	//out_jsk_msgs_array.header = in_jsk_msgs.header;
+	//out_jsk_msgs_array.boxes.push_back(out_jsk_msgs);
 
 	std_msgs::Header out_header = in_jsk_msgs.header;
 	out_header.frame_id = "world";
@@ -149,6 +154,7 @@ void int_detection::sync_jsk_box(){
 	cluster_array.clusters.push_back(cluster);
 	pub_cloud.publish(cluster_array);
 	pub_pointcloud.publish(cluster.cloud);
+	//pub_jsk_box.publish(out_jsk_msgs_array);
 
 }
 
@@ -186,7 +192,7 @@ visualization_msgs::InteractiveMarkerControl& int_detection::make_box_control( v
 	control.interaction_mode = visualization_msgs::InteractiveMarkerControl::MOVE_AXIS;
 	control.orientation.x = 0;
 	control.orientation.y = 0;
-	control.orientation.z = 1.0;
+	control.orientation.z = 1;
 	control.orientation.w = 1;
 
 	visualization_msgs::Marker marker;
@@ -214,9 +220,10 @@ void int_detection::calc_boxpose(){
 	tf::Pose world_to_velodyne;
 	tf::Pose req_to_velodyne;
 	tf::StampedTransform req_to_world;
-
-
-	float theta = std::atan(in_jsk_msgs.pose.position.y / in_jsk_msgs.pose.position.x);
+	float theta = 0;
+	if (in_jsk_msgs.pose.position.x != 0){
+		theta = std::atan(out_jsk_msgs.pose.position.y / out_jsk_msgs.pose.position.x);;
+	}
 
 	box_pose.position.x = in_jsk_msgs.pose.position.x + shift * std::sin(theta);
 	box_pose.position.y = in_jsk_msgs.pose.position.y + shift * std::cos(theta);
