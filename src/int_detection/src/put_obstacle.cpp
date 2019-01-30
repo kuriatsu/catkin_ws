@@ -21,7 +21,7 @@ boost::shared_ptr<interactive_markers::InteractiveMarkerServer> server;
 std::vector<tf::Vector3> positions;
 
 
-class int_obstacle{
+class put_obstacle{
 
 	private:
 		ros::Publisher pub_pointcloud;
@@ -30,7 +30,7 @@ class int_obstacle{
 		jsk_recognition_msgs::BoundingBox out_jsk_msgs;
 
 	public :
-		int_obstacle();
+		put_obstacle();
 		void sync_jsk_box();
 		void get_obstacle_pose();
 
@@ -41,7 +41,7 @@ class int_obstacle{
 };
 
 
-int_obstacle::int_obstacle(){
+put_obstacle::put_obstacle(){
 
 	ros::NodeHandle n;
 
@@ -62,7 +62,7 @@ int_obstacle::int_obstacle(){
 }
 
 
-void int_obstacle::get_obstacle_pose(){
+void put_obstacle::get_obstacle_pose(){
 
 	//obstacle_pose.position.x = -10.5868;//nu_garden_route1
 	obstacle_pose.position.x = 6.53186;//takeda_lab
@@ -83,7 +83,7 @@ void int_obstacle::get_obstacle_pose(){
 
 }
 
-void int_obstacle::make_cube(){
+void put_obstacle::make_cube(){
 
 	visualization_msgs::InteractiveMarker int_marker;
 
@@ -97,14 +97,14 @@ void int_obstacle::make_cube(){
 	//ROS_INFO_STREAM(out_jsk_msgs.pose);
 	server->insert(int_marker);
 
-	server->setCallback(int_marker.name, boost::bind(&int_obstacle::shift_feedback, this, _1));
+	server->setCallback(int_marker.name, boost::bind(&put_obstacle::shift_feedback, this, _1));
 	server->applyChanges();
 
 
 }
 
 
-visualization_msgs::InteractiveMarkerControl& int_obstacle::make_box_control( visualization_msgs::InteractiveMarker &msg){
+visualization_msgs::InteractiveMarkerControl& put_obstacle::make_box_control( visualization_msgs::InteractiveMarker &msg){
 
 	visualization_msgs::InteractiveMarkerControl control;
 	control.always_visible  = true;
@@ -133,7 +133,7 @@ visualization_msgs::InteractiveMarkerControl& int_obstacle::make_box_control( vi
 }
 
 
-void int_obstacle::sync_jsk_box(){
+void put_obstacle::sync_jsk_box(){
 
 	autoware_msgs::CloudClusterArray cluster_array;
 	autoware_msgs::CloudCluster cluster;
@@ -231,7 +231,7 @@ void int_obstacle::sync_jsk_box(){
 }
 
 
-void int_obstacle::shift_feedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
+void put_obstacle::shift_feedback(const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback){
 
 	out_jsk_msgs.pose = feedback->pose;
 	//ROS_INFO_STREAM(out_jsk_msgs);
@@ -242,12 +242,12 @@ void int_obstacle::shift_feedback(const visualization_msgs::InteractiveMarkerFee
 
 int main(int argc, char **argv){
 
-	ros::init(argc, argv, "int_obstacle_node");
-	server.reset(new interactive_markers::InteractiveMarkerServer("int_obstacle_node"));
+	ros::init(argc, argv, "put_obstacle_node");
+	server.reset(new interactive_markers::InteractiveMarkerServer("put_obstacle_node"));
 	ros::Duration(0.1).sleep();
 	ROS_INFO("Initializing...");
 
-	int_obstacle int_obstacle;
+	put_obstacle put_obstacle;
 	ROS_INFO("Ready...");
 	//server->applyChanges();
 

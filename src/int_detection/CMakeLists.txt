@@ -207,5 +207,5 @@ include_directories(
 add_executable( int_detection_node src/int_detection.cpp)
 target_link_libraries( int_detection_node ${catkin_LIBRARIES})
 
-add_executable( int_obstacle_node src/int_obstacle.cpp)
-target_link_libraries( int_obstacle_node ${catkin_LIBRARIES})
+add_executable( put_obstacle_node src/put_obstacle.cpp)
+target_link_libraries( put_obstacle_node ${catkin_LIBRARIES})
