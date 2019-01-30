@@ -204,5 +204,8 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-add_executable(add_obstacle_node src/add_obstacle)
-target_link_libraries(add_obstacle_node ${catkin_LIBRARIES})
+add_executable(put_multi_obstacle_node src/put_multi_obstacle.cpp)
+target_link_libraries(put_multi_obstacle_node ${catkin_LIBRARIES})
+
+add_executable(int_detection_camera_node src/int_detection_camera.cpp)
+target_link_libraries(int_detection_camera_node ${catkin_LIBRARIES})
