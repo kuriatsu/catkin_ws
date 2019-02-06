@@ -50,12 +50,12 @@ class int_detection_camera{
 };
 
 
-int_detection_camera::int_detection_camera()): shift(0){
+int_detection_camera::int_detection_camera(): shift(0){
 
 	ros::NodeHandle n;
 
 	sub_detection = n.subscribe("/detection/tracked_objects", 5, &int_detection_camera::detection_callback, this);
-	sub_detection = n.subscribe("/camera_info", 5, &int_detection_camera::camera_info_callback, this);
+	sub_camera_info = n.subscribe("/camera_info", 5, &int_detection_camera::camera_info_callback, this);
 	pub_pointcloud = n.advertise<sensor_msgs::PointCloud2>("/int_pointcloud", 50);
 	pub_cloud = n.advertise<autoware_msgs::CloudClusterArray>("/int_cluster", 50);
 	//pub_jsk_box = n.advertise<jsk_recognition_msgs::BoundingBoxArray>("/int_boundingbox", 5);

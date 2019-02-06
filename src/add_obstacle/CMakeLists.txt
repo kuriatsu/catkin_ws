@@ -209,3 +209,6 @@ target_link_libraries(put_multi_obstacle_node ${catkin_LIBRARIES})
 
 add_executable(int_detection_camera_node src/int_detection_camera.cpp)
 target_link_libraries(int_detection_camera_node ${catkin_LIBRARIES})
+
+add_executable(select_obstacle_node src/select_obstacle.cpp)
+target_link_libraries(select_obstacle_node ${catkin_LIBRARIES})
