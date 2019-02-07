@@ -65,19 +65,19 @@ put_obstacle::put_obstacle(){
 void put_obstacle::get_obstacle_pose(){
 
 	//obstacle_pose.position.x = -10.5868;//nu_garden_route1
-	obstacle_pose.position.x = 6.53186;//takeda_lab
+	//obstacle_pose.position.x = 6.53186;//takeda_lab
 	//obstacle_pose.position.x = -41.8812;//nu_garden_route2
-	//obstacle_pose.position.y = 38.6797;//nu_garden_route1
-	obstacle_pose.position.y = 0.86863;//takeda_lab
+	obstacle_pose.position.y = 38.6797;//nu_garden_route1
+	//obstacle_pose.position.y = 0.86863;//takeda_lab
 	//obstacle_pose.position.y = 28.1681;//nu_garden_route2
 	obstacle_pose.position.z = 0.0;
 	obstacle_pose.orientation.x = 0.0;
 	obstacle_pose.orientation.y = 0.0;
-	//obstacle_pose.orientation.z = sin(M_PI/4);//nu_garden_route1
-	obstacle_pose.orientation.z = 0;//takeda_lab
+	obstacle_pose.orientation.z = sin(M_PI/4);//nu_garden_route1
+	//obstacle_pose.orientation.z = 0;//takeda_lab
 	//obstacle_pose.orientation.z = sin(M_PI/7);//nu_garden_route2
-	//obstacle_pose.orientation.w = cos(M_PI/4);//nu_garden_route1
-	obstacle_pose.orientation.w = 0;//takeda_lab
+	obstacle_pose.orientation.w = cos(M_PI/4);//nu_garden_route1
+	//obstacle_pose.orientation.w = 0;//takeda_lab
 	//obstacle_pose.orientation.w = cos(M_PI/7);//nu_garden_route2
 
 
